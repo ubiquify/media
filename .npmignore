@@ -1,0 +1,10 @@
+node_modules/
+*.tsbuildinfo
+*.tgz
+logs
+*.log
+.npmrc
+ssl/*.key
+ssl/*.crt
+src/__tests__/
+dist/__tests__/
