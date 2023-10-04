@@ -23,9 +23,10 @@ import {
   mediaSystemFactory,
   mediaCollectionFactory,
   NamedMediaCollection,
-  newMediaCollectionFromBundle,
   createMediaSystemViewCurrent,
   MediaSystemView,
+  importMediaCollectionVersion,
+  importMediaCollectionComplete,
 } from "../index";
 
 const chunkSize = 512;
@@ -110,7 +111,7 @@ describe("media collection api", function () {
 
     // check history
     const history: Version[] = mediaCollection.getVersionStore().log();
-    
+
     expect(history.length).toBe(1);
     expect(history[0].details.tags).toStrictEqual(["test"]);
     expect(history[0].details.comment).toBe("test");
@@ -161,7 +162,7 @@ describe("media collection api", function () {
     expect(mediaCollection.versionStoreRoot()).toBe(undefined);
   });
 
-  test("media collection export import", async () => {
+  test("media collection export / import", async () => {
     // prepare media collection storage structure
     const blockStore: BlockStore = memoryBlockStoreFactory();
     const versionStore: VersionStore = await versionStoreFactory({
@@ -220,14 +221,17 @@ describe("media collection api", function () {
     mediaCollection.add(mediaNode1);
 
     // commit
-    await mediaCollection.commit({ comment: "test", tags: ["test"] });
+    const { currentRoot: originalVersionRoot } = await mediaCollection.commit({
+      comment: "test",
+      tags: ["test"],
+    });
 
-    // export bundle
-    const bundle: Block = await mediaCollection.exportBundle();
+    // export bundle (current version)
+    const bundle: Block = await mediaCollection.exportCurrentVersion();
 
-    // import bundle
+    // import bundle (current version)
     const importedMediaCollection: MediaCollection =
-      await newMediaCollectionFromBundle(bundle.bytes, {
+      await importMediaCollectionVersion(bundle.bytes, {
         chunk,
         chunkSize,
         linkCodec,
@@ -245,5 +249,71 @@ describe("media collection api", function () {
     expect(importedMediaCollection.valuesLoaded()).toStrictEqual(
       mediaCollection.valuesLoaded()
     );
+
+    const mediaNode2: MediaNode = {
+      id: "2",
+      createdAt: 12345,
+      comment: "test",
+      media: {
+        name: "test",
+        mimeType: "text/plain",
+        data: new Uint8Array([1, 2, 3, 4, 5]),
+      },
+    };
+    mediaCollection.add(mediaNode2);
+    await mediaCollection.commit({ comment: "test", tags: ["test"] });
+
+    // export bundle complete
+    const bundleComplete: Block = await mediaCollection.exportComplete();
+
+    // import bundle complete
+    const importedMediaCollectionComplete: MediaCollection =
+      await importMediaCollectionComplete(bundleComplete.bytes, {
+        chunk,
+        chunkSize,
+        linkCodec,
+        valueCodec,
+        blockStore,
+      });
+
+    await importedMediaCollectionComplete.load({});
+
+    // check expected content identifier
+    expect(
+      linkCodec.encodeString(importedMediaCollectionComplete.currentRoot())
+    ).toStrictEqual(linkCodec.encodeString(mediaCollection.currentRoot()));
+
+    // check values
+    expect(importedMediaCollectionComplete.valuesLoaded()).toStrictEqual([
+      mediaNode0,
+      mediaNode1,
+      mediaNode2,
+    ]);
+    const originalVersionStore = mediaCollection.getVersionStore();
+    const importedVersionStore =
+      importedMediaCollectionComplete.getVersionStore();
+    expect(
+      linkCodec.encodeString(originalVersionStore.versionStoreRoot())
+    ).toStrictEqual(
+      linkCodec.encodeString(importedVersionStore.versionStoreRoot())
+    );
+    expect(originalVersionStore.id()).toStrictEqual(importedVersionStore.id());
+    expect(originalVersionStore.log().length).toStrictEqual(
+      importedVersionStore.log().length
+    );
+
+    // checkout version
+    importedMediaCollectionComplete.checkout(originalVersionRoot);
+
+    // check no values loaded after checkout
+    expect(importedMediaCollectionComplete.valuesLoaded()).toStrictEqual([]);
+
+    await importedMediaCollectionComplete.load({});
+
+    // check values to reflect original version
+    expect(importedMediaCollectionComplete.valuesLoaded()).toStrictEqual([
+      mediaNode0,
+      mediaNode1,
+    ]);
   });
 });

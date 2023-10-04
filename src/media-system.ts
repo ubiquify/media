@@ -25,9 +25,10 @@ import {
   MediaSystemKeys,
   abstractFactory,
   retrieveContentAddressableCollection,
-  newContentAddressableCollectionFromBundle,
   pullContentAddressableCollection,
   Versioned,
+  importContentAddressableCollectionVersion,
+  importContentAddressableCollectionComplete,
 } from "./media";
 
 import { mediaCollectionFactory } from "./media-collection";
@@ -331,6 +332,20 @@ export const mediaSystemFactory = (
     } else return false;
   };
 
+  const checkout = (versionRoot: Link): MediaSystem => {
+    loaded.length = 0;
+    functions.getVersionStore().checkout(versionRoot);
+    return {
+      ...functions,
+      getByNameLoaded,
+      getByNameAdded,
+      commit,
+      commitCollection,
+      load,
+      areRemoteUpdatesForLoadedCollection,
+    };
+  };
+
   return {
     ...functions,
     getByNameLoaded,
@@ -339,6 +354,7 @@ export const mediaSystemFactory = (
     commitCollection,
     load,
     areRemoteUpdatesForLoadedCollection,
+    checkout,
   };
 };
 
@@ -402,7 +418,7 @@ export const retrieveMediaSystem = async (
   );
 };
 
-export const newMediaSystemFromBundle = async (
+export const importMediaSystemVersion = async (
   bundle: Uint8Array,
   {
     chunk,
@@ -418,7 +434,39 @@ export const newMediaSystemFromBundle = async (
     blockStore: BlockStore;
   }
 ): Promise<MediaSystem> => {
-  return newContentAddressableCollectionFromBundle<
+  return importContentAddressableCollectionVersion<
+    MediaCollection,
+    MediaSystem
+  >(
+    bundle,
+    {
+      chunk,
+      chunkSize,
+      linkCodec,
+      valueCodec,
+      blockStore,
+    },
+    mediaSystemFactory
+  );
+};
+
+export const importMediaSystemComplete = async (
+  bundle: Uint8Array,
+  {
+    chunk,
+    chunkSize,
+    linkCodec,
+    valueCodec,
+    blockStore,
+  }: {
+    chunk: (buffer: Uint8Array) => Uint32Array;
+    chunkSize: number;
+    linkCodec: LinkCodec;
+    valueCodec: ValueCodec;
+    blockStore: BlockStore;
+  }
+): Promise<MediaSystem> => {
+  return importContentAddressableCollectionComplete<
     MediaCollection,
     MediaSystem
   >(

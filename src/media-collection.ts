@@ -21,8 +21,9 @@ import {
   abstractFactory,
   pullContentAddressableCollection,
   retrieveContentAddressableCollection,
-  newContentAddressableCollectionFromBundle,
   Versioned,
+  importContentAddressableCollectionVersion,
+  importContentAddressableCollectionComplete,
 } from "./media";
 
 const itemsToMediaNodes = async (items: Item[]): Promise<MediaNode[]> => {
@@ -163,10 +164,21 @@ export const mediaCollectionFactory = (
     return loaded.map((versioned) => versioned.model);
   };
 
+  const checkout = (versionRoot: Link): MediaCollection => {
+    loaded.length = 0;
+    functions.getVersionStore().checkout(versionRoot);
+    return {
+      ...functions,
+      commit,
+      load,
+    };
+  };
+
   return {
     ...functions,
     commit,
     load,
+    checkout,
   };
 };
 
@@ -230,7 +242,7 @@ export const retrieveMediaCollection = async (
   );
 };
 
-export const newMediaCollectionFromBundle = async (
+export const importMediaCollectionVersion = async (
   bundle: Uint8Array,
   {
     chunk,
@@ -246,7 +258,36 @@ export const newMediaCollectionFromBundle = async (
     blockStore: BlockStore;
   }
 ): Promise<MediaCollection> => {
-  return newContentAddressableCollectionFromBundle<MediaNode, MediaCollection>(
+  return importContentAddressableCollectionVersion<MediaNode, MediaCollection>(
+    bundle,
+    {
+      chunk,
+      chunkSize,
+      linkCodec,
+      valueCodec,
+      blockStore,
+    },
+    mediaCollectionFactory
+  );
+};
+
+export const importMediaCollectionComplete = async (
+  bundle: Uint8Array,
+  {
+    chunk,
+    chunkSize,
+    linkCodec,
+    valueCodec,
+    blockStore,
+  }: {
+    chunk: (buffer: Uint8Array) => Uint32Array;
+    chunkSize: number;
+    linkCodec: LinkCodec;
+    valueCodec: ValueCodec;
+    blockStore: BlockStore;
+  }
+): Promise<MediaCollection> => {
+  return importContentAddressableCollectionComplete<MediaNode, MediaCollection>(
     bundle,
     {
       chunk,

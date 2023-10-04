@@ -1,6 +1,6 @@
 {
   "name": "@ubiquify/media",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "Client centric media storage and exchange protocol",
   "repository": "https://github.com/ubiquify/media.git",
   "type": "module",
@@ -26,14 +26,14 @@
   "license": "(Apache-2.0 AND MIT)",
   "author": "ubiquifier <ubiquify@proton.me>",
   "dependencies": {
-    "@ubiquify/core": "^0.0.8",
-    "@ubiquify/cyclone": "^0.0.8",
+    "@ubiquify/core": "^0.0.9",
+    "@ubiquify/cyclone": "^0.0.9",
     "base64-js": "^1.5.1"
   },
   "devDependencies": {
     "@dstanesc/wasm-chunking-fastcdc-node": "^0.1.1",
     "@types/jest": "^29.5.2",
-    "@ubiquify/relay": "^0.0.14",
+    "@ubiquify/relay": "^0.0.15",
     "@ubiquify/weblock": "^0.0.3",
     "cpy-cli": "^5.0.0",
     "cross-env": "^7.0.3",

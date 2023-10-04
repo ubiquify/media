@@ -67,6 +67,7 @@ export interface ContentAddressable {
   versionStoreId: () => string;
   versionStoreRoot: () => Link;
   currentRoot: () => Link;
+  getVersionStore: () => VersionStore;
   verify: ({
     subtle,
     publicKey,
@@ -77,7 +78,7 @@ export interface ContentAddressable {
 }
 
 export interface ContentAddressableCollection<T> extends ContentAddressable {
-  getVersionStore: () => VersionStore;
+  checkout: (versionRoot: Link) => ContentAddressableCollection<T>;
   add: (mediaNode: T) => void;
   getByIndexLoaded: (index: number) => T | undefined;
   getByIndexAdded: (index: number) => T | undefined;
@@ -114,7 +115,8 @@ export interface ContentAddressableCollection<T> extends ContentAddressable {
   }>;
   push: (relayUrl: string) => Promise<BasicPushResponse>;
   pull: (relayUrl: string) => Promise<void>;
-  exportBundle: () => Promise<Block>;
+  exportCurrentVersion: () => Promise<Block>;
+  exportComplete: () => Promise<Block>;
 }
 
 export interface NamedContentAddressableCollection<T>
@@ -341,9 +343,20 @@ export const abstractFactory = <E, C extends ContentAddressableCollection<E>>(
     });
   };
 
-  const exportBundle = async (): Promise<Block> => {
+  const exportCurrentVersion = async (): Promise<Block> => {
     const { packGraphVersion } = graphPackerFactory(linkCodec);
     const bundle: Block = await packGraphVersion(currentRoot(), blockStore);
+    return bundle;
+  };
+
+  const exportComplete = async (): Promise<Block> => {
+    const { packGraphComplete } = graphPackerFactory(linkCodec);
+    const bundle: Block = await packGraphComplete(
+      versionStoreRoot(),
+      blockStore,
+      chunk,
+      valueCodec
+    );
     return bundle;
   };
 
@@ -369,7 +382,8 @@ export const abstractFactory = <E, C extends ContentAddressableCollection<E>>(
     push,
     pull,
     verify,
-    exportBundle,
+    exportCurrentVersion,
+    exportComplete,
   } as C;
 };
 
@@ -498,7 +512,7 @@ export const retrieveContentAddressableCollection = async <
   return collection;
 };
 
-export const newContentAddressableCollectionFromBundle = async <
+export const importContentAddressableCollectionVersion = async <
   E,
   C extends ContentAddressableCollection<E>
 >(
@@ -540,6 +554,73 @@ export const newContentAddressableCollectionFromBundle = async <
   tempStore.push(blockStore);
   const versionStore: VersionStore = await versionStoreFactory({
     versionRoot,
+    chunk,
+    linkCodec,
+    valueCodec,
+    blockStore,
+  });
+  const graphStore: GraphStore = graphStoreFactory({
+    chunk,
+    linkCodec,
+    valueCodec,
+    blockStore,
+  });
+  const collection = collectionFactory(versionStore, graphStore, {
+    chunk,
+    chunkSize,
+    linkCodec,
+    valueCodec,
+    blockStore,
+  });
+  return collection;
+};
+
+export const importContentAddressableCollectionComplete = async <
+  E,
+  C extends ContentAddressableCollection<E>
+>(
+  bundle: Uint8Array,
+  {
+    chunk,
+    chunkSize,
+    linkCodec,
+    valueCodec,
+    blockStore,
+  }: {
+    chunk: (buffer: Uint8Array) => Uint32Array;
+    chunkSize: number;
+    linkCodec: LinkCodec;
+    valueCodec: ValueCodec;
+    blockStore: BlockStore;
+  },
+  collectionFactory: (
+    versionStore: VersionStore,
+    graphStore: GraphStore,
+    {
+      chunk,
+      chunkSize,
+      linkCodec,
+      valueCodec,
+      blockStore,
+    }: {
+      chunk: (buffer: Uint8Array) => Uint32Array;
+      chunkSize: number;
+      linkCodec: LinkCodec;
+      valueCodec: ValueCodec;
+      blockStore: BlockStore;
+    }
+  ) => C
+): Promise<C> => {
+  const { restoreGraphComplete } = graphPackerFactory(linkCodec);
+  const tempStore: MemoryBlockStore = memoryBlockStoreFactory();
+  const { versionStoreRoot, versionRoots } = await restoreGraphComplete(
+    bundle,
+    tempStore
+  );
+  tempStore.push(blockStore);
+  const versionStore: VersionStore = await versionStoreFactory({
+    storeRoot: versionStoreRoot,
+    versionRoot: versionRoots[0],
     chunk,
     linkCodec,
     valueCodec,
