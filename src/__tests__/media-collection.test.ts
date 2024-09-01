@@ -13,6 +13,11 @@ import {
   memoryBlockStoreFactory,
   valueCodecFactory,
   versionStoreFactory,
+  Secrets,
+  Secret,
+  Cipher,
+  cipherFactory,
+  secretsFactory,
 } from "@ubiquify/core";
 import { compute_chunks } from "@dstanesc/wasm-chunking-fastcdc-node";
 import {
@@ -28,13 +33,36 @@ import {
   importMediaCollectionVersion,
   importMediaCollectionComplete,
 } from "../index";
+import crypto from "crypto";
+const { subtle } = crypto.webcrypto;
 
+// chunking settings
 const chunkSize = 512;
 const { chunk } = chunkerFactory(chunkSize, compute_chunks);
-const linkCodec: LinkCodec = linkCodecFactory();
-const valueCodec: ValueCodec = valueCodecFactory();
 
 describe("media collection api", function () {
+  let linkCodec: LinkCodec = linkCodecFactory();
+  let valueCodec: ValueCodec;
+
+  beforeAll(async () => {
+    // use encrypted codecs
+    const secretJwk = {
+      key_ops: ["encrypt", "decrypt"],
+      ext: true,
+      kty: "oct",
+      k: "uc937ZNW-RNe9HQB6yIo4Y9lLKMS8aFGe44P0zQLLbk",
+      alg: "A256GCM",
+      iv: "htb1eAW+Jognhg0vUPxe/Q==",
+    };
+    const secrets: Secrets = secretsFactory({ subtle });
+    const secret = await secrets.importSecret(secretJwk);
+    const cipher = cipherFactory({
+      subtle,
+      secret,
+    });
+    valueCodec = valueCodecFactory(cipher);
+  });
+
   test("basic api", async () => {
     // prepare media collection storage structure
     const blockStore: BlockStore = memoryBlockStoreFactory();
@@ -99,7 +127,7 @@ describe("media collection api", function () {
     // check expected content identifier
     expect(mediaCollection.currentRoot()).toStrictEqual(
       linkCodec.parseString(
-        "bafkreieww5bgaddspfeellgqpjlsqvxgt4w3z7ealwjc5vmfzao427b4de"
+        "bafkreihxgx4x4qrxe63sjfxtot6fziirxjxz5643pb7gnrnqqqgto5z5zu"
       )
     );
 
@@ -239,7 +267,8 @@ describe("media collection api", function () {
         blockStore,
       });
 
-    importedMediaCollection.load({});
+    await mediaCollection.load({});
+    await importedMediaCollection.load({});
 
     // check expected content identifier
     expect(

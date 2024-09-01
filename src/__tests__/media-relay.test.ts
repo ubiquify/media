@@ -57,7 +57,7 @@ describe("Basic client tests", () => {
     relayBlockStore = memoryBlockStoreFactory();
     linkResolver = memoryBlockResolverFactory();
     graphRelay = createGraphRelay(relayBlockStore, linkResolver);
-    server = graphRelay.startHttp(3000, done); // Start the server
+    server = graphRelay.startHttp(3002, done); // Start the server
     relayClient = relayClientBasicFactory(
       {
         chunk,
@@ -68,7 +68,7 @@ describe("Basic client tests", () => {
         maxBatchSizeBytes: 1024 * 256,
       },
       {
-        baseURL: "http://localhost:3000",
+        baseURL: "http://localhost:3002",
       }
     );
   });
@@ -210,7 +210,7 @@ describe("Basic client tests", () => {
 
       // share the media collection
       const response: BasicPushResponse = await mediaCollection.push(
-        "http://localhost:3000"
+        "http://localhost:3002"
       );
 
       // load media system - full load
@@ -220,7 +220,7 @@ describe("Basic client tests", () => {
       const shouldBeNone =
         await initialMediaSystem.areRemoteUpdatesForLoadedCollection({
           name: "/tmp",
-          relayUrl: "http://localhost:3000",
+          relayUrl: "http://localhost:3002",
         });
 
       expect(shouldBeNone).toBe(false);
@@ -228,7 +228,7 @@ describe("Basic client tests", () => {
       // pull the media collection elsewhere
       const blockStore2: BlockStore = memoryBlockStoreFactory();
       const mediaCollectionPulled: MediaCollection = await pullMediaCollection(
-        "http://localhost:3000",
+        "http://localhost:3002",
         versionStoreId,
         {
           chunk,
@@ -295,7 +295,7 @@ describe("Basic client tests", () => {
       // pull the media collection elsewhere
       const blockStoreElsewhere: BlockStore = memoryBlockStoreFactory();
       const mediaCollectionElsewhere: MediaCollection =
-        await pullMediaCollection("http://localhost:3000", versionStoreId, {
+        await pullMediaCollection("http://localhost:3002", versionStoreId, {
           chunk,
           chunkSize,
           linkCodec,
@@ -318,7 +318,7 @@ describe("Basic client tests", () => {
 
       // share the media collection, mediaNode3 should be added to the media collection
       const response2: BasicPushResponse = await mediaCollectionElsewhere.push(
-        "http://localhost:3000"
+        "http://localhost:3002"
       );
 
       // exercise the remote update check again for the initial media collection
@@ -326,7 +326,7 @@ describe("Basic client tests", () => {
       const shouldFindUpdates =
         await initialMediaSystem.areRemoteUpdatesForLoadedCollection({
           name: "/tmp",
-          relayUrl: "http://localhost:3000",
+          relayUrl: "http://localhost:3002",
         });
 
       expect(shouldFindUpdates).toBe(true);
@@ -334,7 +334,7 @@ describe("Basic client tests", () => {
       // pull the media collection somewhere
       const blockStore3: BlockStore = memoryBlockStoreFactory();
       const mediaCollectionPulled2: MediaCollection = await pullMediaCollection(
-        "http://localhost:3000",
+        "http://localhost:3002",
         versionStoreId2,
         {
           chunk,
@@ -404,7 +404,7 @@ describe("Basic client tests", () => {
 
       // pull from within the original media collection
       expect(mediaCollection.persistedSize()).resolves.toBe(3);
-      await mediaCollection.pull("http://localhost:3000");
+      await mediaCollection.pull("http://localhost:3002");
       expect(mediaCollection.persistedSize()).resolves.toBe(4);
       const mediaNodesPulled3 = await mediaCollection.load({});
       // check the fourth media node merged
